@@ -1,92 +1,83 @@
-import React, { useRef, useState } from "react";
-import { useEffect } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { LucideEraser, LucidePencilLine, LucideShare } from "lucide-react";
-
-/*
-    - selectedTool Object Structure
-        -- tool (string) : tells us which tool is currently seleected
-*/
+import { WhiteboardSocket } from "../services/websocket";
+import { CanvasManager } from "../utils/canvasManager";
+import { Tools } from "../utils/constants";
+import { MessageTypes } from "../utils/constants";
 
 function Whiteboard() {
   const canvasRef = useRef(null);
-  const contextRef = useRef(null);
   const socketRef = useRef(null);
-  const clientIdRef = useRef(null);
-  const [selectedTool, setSelectedTool] = useState({ tool: "pencil" });
-  const [isDown, setisDown] = useState(false);
+  const canvasManagerRef = useRef(null);
+  const [selectedTool, setSelectedTool] = useState({ tool: Tools.PENCIL });
+  const selectedToolRef = useRef(Tools.PENCIL);
+  const [isDown, setIsDown] = useState(false);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight - 64;
-    const ctx = canvas.getContext("2d");
-    contextRef.current = ctx;
-    socketRef.current = new WebSocket("ws://localhost:3000");
-    socketRef.current.onmessage = (message) => {
-      const data = JSON.parse(message.data);
-      if (data.type == "clientId") {
-        clientIdRef.current = data.clientId;
-      } else if (data.type == "event") {
-        if (data.eventType == "mouse-down") {
-          console.log(data.x, data.y);
-          ctx.moveTo(data.x, data.y);
-          ctx.beginPath();
-        } else if (data.eventType == "mouse-move") {
-          ctx.strokeStyle = selectedTool.tool == "eraser" ? "black" : "white";
-          ctx.lineWidth = selectedTool.tool == "eraser" ? 20 : 2;
-          ctx.lineTo(data.x, data.y);
-          ctx.stroke();
-        } else if (data.eventType == "mouse-up") {
-          ctx.closePath();
-        }
-      }
-      console.log(data);
-    };
+    const socket = new WhiteboardSocket("ws://localhost:3000");
+    socketRef.current = socket;
+
+    const canvasManager = new CanvasManager(canvasRef.current);
+    canvasManagerRef.current = canvasManager;
+
+    socket.connect(handleSocketMessage);
   }, []);
 
-  const handleMouseDown = (offsetX, offsetY) => {
-    const ctx = contextRef.current;
-    const data = {
-      type: "event",
-      eventType: "mouse-down",
-      clientId: clientIdRef.current,
-      x: offsetX,
-      y: offsetY,
-    };
-    socketRef.current.send(JSON.stringify(data));
-    ctx.moveTo(offsetX, offsetY);
-    ctx.beginPath();
-    setisDown(true);
+  const handleSocketMessage = (data) => {
+    switch (data.type) {
+      case MessageTypes.MOUSE_EVENT:
+        handleRemoteMouseEvent(data);
+        break;
+      case MessageTypes.TOOL_EVENT:
+        selectedToolRef.current = data.tool;
+        setSelectedTool({ tool: data.tool });
+        break;
+    }
+  };
+
+  const handleRemoteMouseEvent = (data) => {
+    const canvas = canvasManagerRef.current;
+
+    switch (data.eventType) {
+      case "mouse-down":
+        canvas.startPath(data.x, data.y);
+        break;
+      case "mouse-move":
+        canvas.draw(data.x, data.y, selectedToolRef.current);
+        break;
+      case "mouse-up":
+        canvas.endPath();
+        break;
+    }
+  };
+
+  const handleMouseDown = (x, y) => {
+    socketRef.current.sendMouseEvent("mouse-down", x, y);
+    canvasManagerRef.current.startPath(x, y);
+    setIsDown(true);
   };
 
   const handleMouseUp = () => {
-    const ctx = contextRef.current;
-    const data = {
-      type: "event",
-      eventType: "mouse-up",
-      clientId: clientIdRef.current,
-    };
-    socketRef.current.send(JSON.stringify(data));
-    ctx.closePath();
-    setisDown(false);
+    socketRef.current.sendMouseEvent("mouse-up");
+    canvasManagerRef.current.endPath();
+    setIsDown(false);
   };
 
-  const handleMouseMove = (offsetX, offsetY) => {
-    if (isDown) {
-      const ctx = contextRef.current;
-      ctx.strokeStyle = selectedTool.tool == "eraser" ? "black" : "white";
-      ctx.lineWidth = selectedTool.tool == "eraser" ? 20 : 2;
-      const data = {
-        type: "event",
-        eventType: "mouse-move",
-        clientId: clientIdRef.current,
-        x: offsetX,
-        y: offsetY,
-      };
-      socketRef.current.send(JSON.stringify(data));
-      ctx.lineTo(offsetX, offsetY);
-      ctx.stroke();
-    }
+  const handleMouseMove = (x, y) => {
+    if (!isDown) return;
+
+    socketRef.current.sendMouseEvent("mouse-move", x, y);
+    canvasManagerRef.current.draw(x, y, selectedToolRef.current);
+  };
+
+  const handleToolSelect = (tool) => {
+    socketRef.current.sendToolEvent(tool);
+    selectedToolRef.current = tool;
+    setSelectedTool({ tool });
+  };
+
+  const handleShare = () => {
+    socketRef.current.sendRoomConnection("123");
   };
 
   return (
@@ -94,53 +85,31 @@ function Whiteboard() {
       <canvas
         className="h-[calc(100vh-64px)] w-full bg-black"
         ref={canvasRef}
-        onMouseDown={(e) => {
-          handleMouseDown(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
-        }}
-        onMouseUp={(e) => {
-          handleMouseUp();
-        }}
-        onMouseMove={(e) => {
-          handleMouseMove(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
-        }}
-      ></canvas>
+        onMouseDown={(e) =>
+          handleMouseDown(e.nativeEvent.offsetX, e.nativeEvent.offsetY)
+        }
+        onMouseUp={handleMouseUp}
+        onMouseMove={(e) =>
+          handleMouseMove(e.nativeEvent.offsetX, e.nativeEvent.offsetY)
+        }
+      />
       <div className="bg-white top-[45%] left-5 absolute z-10 flex flex-col gap-3 p-2 rounded-2xl">
         <div
           className={`p-1 ${
-            selectedTool.tool == "pencil" ? "bg-slate-200" : ""
+            selectedTool.tool === Tools.PENCIL ? "bg-slate-200" : ""
           } hover:bg-slate-200 cursor-pointer rounded-lg`}
         >
-          <LucidePencilLine
-            onClick={() => {
-              setSelectedTool({ tool: "pencil" });
-            }}
-          />
+          <LucidePencilLine onClick={() => handleToolSelect(Tools.PENCIL)} />
         </div>
         <div
           className={`p-1 ${
-            selectedTool.tool == "eraser" ? "bg-slate-200" : ""
+            selectedTool.tool === Tools.ERASER ? "bg-slate-200" : ""
           } hover:bg-slate-200 cursor-pointer rounded-lg`}
         >
-          <LucideEraser
-            onClick={() => {
-              setSelectedTool({ tool: "eraser" });
-            }}
-          />
+          <LucideEraser onClick={() => handleToolSelect(Tools.ERASER)} />
         </div>
-        <div
-          className={`p-1 ${
-            selectedTool.tool == "eraser" ? "bg-slate-200" : ""
-          } hover:bg-slate-200 cursor-pointer rounded-lg`}
-        >
-          <LucideShare
-            onClick={() => {
-              const connectionData = {
-                type: "room-connection",
-                roomId: "123",
-              };
-              socketRef.current.send(JSON.stringify(connectionData));
-            }}
-          />
+        <div className="p-1 hover:bg-slate-200 cursor-pointer rounded-lg">
+          <LucideShare onClick={handleShare} />
         </div>
       </div>
     </>
@@ -148,6 +117,175 @@ function Whiteboard() {
 }
 
 export default Whiteboard;
+
+/* DRAFT - 2 */
+
+// import React, { useRef, useState } from "react";
+// import { useEffect } from "react";
+// import { LucideEraser, LucidePencilLine, LucideShare } from "lucide-react";
+
+// /*
+//     - selectedTool Object Structure
+//         -- tool (string) : tells us which tool is currently seleected
+// */
+
+// function Whiteboard() {
+//   const canvasRef = useRef(null);
+//   const contextRef = useRef(null);
+//   const socketRef = useRef(null);
+//   const clientIdRef = useRef(null);
+//   const [selectedTool, setSelectedTool] = useState({ tool: "pencil" });
+//   const selectedToolRef = useRef({ tool: "pencil" });
+//   const [isDown, setisDown] = useState(false);
+
+//   useEffect(() => {
+//     const canvas = canvasRef.current;
+//     canvas.width = window.innerWidth;
+//     canvas.height = window.innerHeight - 64;
+//     const ctx = canvas.getContext("2d");
+//     contextRef.current = ctx;
+//     socketRef.current = new WebSocket("ws://localhost:3000");
+//     socketRef.current.onmessage = (message) => {
+//       const data = JSON.parse(message.data);
+//       if (data.type == "clientId") {
+//         clientIdRef.current = data.clientId;
+//       } else if (data.type == "mouse-event") {
+//         if (data.eventType == "mouse-down") {
+//           console.log(data.x, data.y);
+//           ctx.moveTo(data.x, data.y);
+//           ctx.beginPath();
+//         } else if (data.eventType == "mouse-move") {
+//           ctx.strokeStyle =
+//             selectedToolRef.current.tool == "eraser" ? "black" : "white";
+//           ctx.lineWidth = selectedToolRef.current.tool == "eraser" ? 20 : 2;
+//           ctx.lineTo(data.x, data.y);
+//           ctx.stroke();
+//         } else if (data.eventType == "mouse-up") {
+//           ctx.closePath();
+//         }
+//       } else if (data.type == "tool-event") {
+//         selectedToolRef.current.tool = data.tool;
+//         setSelectedTool({ tool: data.tool });
+//       }
+//     };
+//   }, []);
+
+//   const handleMouseDown = (offsetX, offsetY) => {
+//     const ctx = contextRef.current;
+//     const data = {
+//       type: "mouse-event",
+//       eventType: "mouse-down",
+//       clientId: clientIdRef.current,
+//       x: offsetX,
+//       y: offsetY,
+//     };
+//     socketRef.current.send(JSON.stringify(data));
+//     ctx.moveTo(offsetX, offsetY);
+//     ctx.beginPath();
+//     setisDown(true);
+//   };
+
+//   const handleMouseUp = () => {
+//     const ctx = contextRef.current;
+//     const data = {
+//       type: "mouse-event",
+//       eventType: "mouse-up",
+//       clientId: clientIdRef.current,
+//     };
+//     socketRef.current.send(JSON.stringify(data));
+//     ctx.closePath();
+//     setisDown(false);
+//   };
+
+//   const handleMouseMove = (offsetX, offsetY) => {
+//     if (isDown) {
+//       const ctx = contextRef.current;
+//       ctx.strokeStyle = selectedTool.tool == "eraser" ? "black" : "white";
+//       ctx.lineWidth = selectedTool.tool == "eraser" ? 20 : 2;
+//       const data = {
+//         type: "mouse-event",
+//         eventType: "mouse-move",
+//         clientId: clientIdRef.current,
+//         x: offsetX,
+//         y: offsetY,
+//       };
+//       socketRef.current.send(JSON.stringify(data));
+//       ctx.lineTo(offsetX, offsetY);
+//       ctx.stroke();
+//     }
+//   };
+
+//   return (
+//     <>
+//       <canvas
+//         className="h-[calc(100vh-64px)] w-full bg-black"
+//         ref={canvasRef}
+//         onMouseDown={(e) => {
+//           handleMouseDown(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+//         }}
+//         onMouseUp={(e) => {
+//           handleMouseUp();
+//         }}
+//         onMouseMove={(e) => {
+//           handleMouseMove(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+//         }}
+//       ></canvas>
+//       <div className="bg-white top-[45%] left-5 absolute z-10 flex flex-col gap-3 p-2 rounded-2xl">
+//         <div
+//           className={`p-1 ${
+//             selectedTool.tool == "pencil" ? "bg-slate-200" : ""
+//           } hover:bg-slate-200 cursor-pointer rounded-lg`}
+//         >
+//           <LucidePencilLine
+//             onClick={() => {
+//               const toolData = {
+//                 type: "tool-event",
+//                 tool: "pencil",
+//                 clientId: clientIdRef.current,
+//               };
+//               socketRef.current.send(JSON.stringify(toolData));
+//               setSelectedTool({ tool: "pencil" });
+//             }}
+//           />
+//         </div>
+//         <div
+//           className={`p-1 ${
+//             selectedTool.tool == "eraser" ? "bg-slate-200" : ""
+//           } hover:bg-slate-200 cursor-pointer rounded-lg`}
+//         >
+//           <LucideEraser
+//             onClick={() => {
+//               const toolData = {
+//                 type: "tool-event",
+//                 tool: "eraser",
+//                 clientId: clientIdRef.current,
+//               };
+//               socketRef.current.send(JSON.stringify(toolData));
+//               setSelectedTool({ tool: "eraser" });
+//             }}
+//           />
+//         </div>
+//         <div
+//           className={`p-1 ${
+//             selectedTool.tool == "eraser" ? "bg-slate-200" : ""
+//           } hover:bg-slate-200 cursor-pointer rounded-lg`}
+//         >
+//           <LucideShare
+//             onClick={() => {
+//               const connectionData = {
+//                 type: "room-connection",
+//                 roomId: "123",
+//               };
+//               socketRef.current.send(JSON.stringify(connectionData));
+//             }}
+//           />
+//         </div>
+//       </div>
+//     </>
+//   );
+// }
+
+// export default Whiteboard;
 
 /* DRAFT - 1 Complex erasing logic  */
 
