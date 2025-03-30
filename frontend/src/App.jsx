@@ -1,10 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import Navbar from "./components/Navbar";
 import Whiteboard from "./components/Whiteboard";
-import Auth from "./components/Authentication/auth";
 import { WhiteboardSocket } from "./services/websocket";
 import { useParams } from "react-router-dom";
-import { LucideCross, LucideX } from "lucide-react";
 
 const App = () => {
   const params = useParams();

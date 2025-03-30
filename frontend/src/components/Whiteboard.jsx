@@ -1,6 +1,5 @@
 import React, { useRef, useState, useEffect } from "react";
 import { LucideEraser, LucidePencilLine, LucideShare } from "lucide-react";
-import { WhiteboardSocket } from "../services/websocket";
 import { CanvasManager } from "../utils/canvasManager";
 import { RoomConnectionTypes, Tools } from "../utils/constants";
 import { MessageTypes } from "../utils/constants";
