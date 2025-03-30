@@ -3,6 +3,7 @@ import Navbar from "./components/Navbar";
 import Whiteboard from "./components/Whiteboard";
 import { WhiteboardSocket } from "./services/websocket";
 import { useParams } from "react-router-dom";
+import { LucideX } from "lucide-react";
 
 const App = () => {
   const params = useParams();
