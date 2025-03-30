@@ -9,7 +9,7 @@ dotenv.config({ path: "./.env" });
 
 export class WhiteboardServer {
   constructor(port) {
-    this.port = port || 3000;
+    this.port = port;
     this.roomManager = new RoomManager();
     this.clientManager = new ClientManager();
     this.initializeServer();
