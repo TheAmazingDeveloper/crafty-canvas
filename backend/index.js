@@ -12,13 +12,10 @@ export class WhiteboardServer {
     this.port = port || 3000;
     this.roomManager = new RoomManager();
     this.clientManager = new ClientManager();
-  }
-
-  start() {
     try {
       mongoose.connect(process.env.MONGODB_URI);
       const expressServer = new ExpressServer(this.port);
-      // const httpServer = expressServer.start();
+      const httpServer = expressServer.start();
       new WebSocketHandler(httpServer, this.roomManager, this.clientManager);
     } catch (error) {
       console.error;
@@ -27,7 +24,9 @@ export class WhiteboardServer {
 }
 
 const server = new WhiteboardServer(process.env.PORT);
-server.start();
+
+
+export default server;
 
 // import { WhiteboardServer } from "./services/websocketServer.js";
 
