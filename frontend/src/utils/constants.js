@@ -9,3 +9,9 @@ export const Tools = {
   PENCIL: "pencil",
   ERASER: "eraser",
 };
+
+
+export const RoomConnectionTypes =  {
+  CREATE: "create",
+  JOIN: "join",
+}

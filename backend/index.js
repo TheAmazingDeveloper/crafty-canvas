@@ -1,6 +1,37 @@
-import { WhiteboardServer } from "./services/server.js";
+import { ExpressServer } from "./services/expressServer.js";
+import { WebSocketHandler } from "./services/websocketServer.js";
+import { RoomManager } from "./services/roomManager.js";
+import { ClientManager } from "./services/clientManager.js";
+import dotenv from "dotenv";
+import mongoose from "mongoose";
 
-const server = new WhiteboardServer(3000);
+dotenv.config({ path: "./.env" });
+
+export class WhiteboardServer {
+  constructor(port) {
+    this.port = port || 3000;
+    this.roomManager = new RoomManager();
+    this.clientManager = new ClientManager();
+  }
+
+  start() {
+    try {
+      mongoose.connect(process.env.MONGODB_URI);
+      const expressServer = new ExpressServer(this.port);
+      const httpServer = expressServer.start();
+      new WebSocketHandler(httpServer, this.roomManager, this.clientManager);
+    } catch (error) {
+      console.error;
+    }
+  }
+}
+
+const server = new WhiteboardServer(process.env.PORT);
+server.start();
+
+// import { WhiteboardServer } from "./services/websocketServer.js";
+
+// const server = new WhiteboardServer(3000);
 
 /* draft - 1 */
 

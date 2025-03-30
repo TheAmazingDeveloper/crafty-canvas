@@ -1,9 +1,11 @@
-import { MessageTypes } from "../utils/constants";
-
+import { MessageTypes, RoomConnectionTypes } from "../utils/constants";
+import roomIdGenerator from "../utils/roomIdGenerator.js";
 export class WhiteboardSocket {
   constructor(url) {
     this.socket = new WebSocket(url);
     this.clientId = null;
+    this.roomId = roomIdGenerator();
+    this.currentRoomId = roomIdGenerator();
   }
 
   connect(onMessage) {
@@ -16,11 +18,12 @@ export class WhiteboardSocket {
     };
   }
 
-  sendRoomConnection(roomId) {
+  sendRoomConnection(roomId, type) {
     this.socket.send(
       JSON.stringify({
         type: MessageTypes.ROOM_CONNECTION,
-        roomId,
+        connectionType: type,
+        roomId: type == RoomConnectionTypes.JOIN ? roomId : this.roomId,
         clientId: this.clientId,
       })
     );

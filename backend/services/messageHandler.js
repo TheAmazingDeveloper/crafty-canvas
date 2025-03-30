@@ -1,4 +1,4 @@
-import { MessageTypes } from "../utils/constants.js";
+import { MessageTypes, RoomConnectionTypes } from "../utils/constants.js";
 
 export class MessageHandler {
   constructor(wss, roomManager, clientManager) {
@@ -24,8 +24,15 @@ export class MessageHandler {
   }
 
   handleRoomConnection(ws, data) {
-    const room = this.roomManager.addClientToRoom(data.roomId, ws.id);
-    console.log(`Client ${ws.id} joined room ${data.roomId}`);
+    if (data.connectionType == RoomConnectionTypes.CREATE) {
+      const room = this.roomManager.createRoom(data.roomId);
+      this.roomManager.addClientToRoom(data.roomId, ws.id);
+      console.log(`Client ${ws.id} created and joined room ${data.roomId}`);
+    }
+    if (data.connectionType == RoomConnectionTypes.JOIN) {
+      this.roomManager.addClientToRoom(data.roomId, ws.id);
+      console.log(`Client ${ws.id} joined room ${data.roomId}`);
+    }
   }
 
   handleMouseEvent(ws, data) {

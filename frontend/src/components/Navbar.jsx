@@ -4,6 +4,7 @@ import {
   LucideShare2,
 } from "lucide-react";
 import React from "react";
+import { RoomConnectionTypes } from "../utils/constants";
 
 /*
   -TODO:
@@ -12,7 +13,11 @@ import React from "react";
     -- Replace circular avatars of collaboartors with Collaborators text.
 */
 
-function Navbar() {
+const Navbar = ({ localSocket, openDialog }) => {
+  const handleRoom = () => {
+    localSocket.sendRoomConnection(null, RoomConnectionTypes.CREATE);
+    openDialog();
+  };
   return (
     <>
       <div
@@ -33,7 +38,10 @@ function Navbar() {
           <div className="p-2 rounded-lg border-2 border-[#eae9ed]">
             <LucideMessageSquareMore size="20px" />
           </div>
-          <div className="flex-center gap-2 text-white rounded-lg px-4 py-2 bg-[#4774d5]">
+          <div
+            className="flex-center gap-2 text-white rounded-lg px-4 py-2 bg-[#4774d5] cursor-pointer"
+            onClick={handleRoom}
+          >
             <span className="text-sm">Share</span>
             <LucideShare2 color="white" size="16px" fill="#ffffff" />
           </div>
@@ -41,7 +49,7 @@ function Navbar() {
       </div>
     </>
   );
-}
+};
 
 export default Navbar;
 

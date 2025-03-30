@@ -2,10 +2,10 @@ import React, { useRef, useState, useEffect } from "react";
 import { LucideEraser, LucidePencilLine, LucideShare } from "lucide-react";
 import { WhiteboardSocket } from "../services/websocket";
 import { CanvasManager } from "../utils/canvasManager";
-import { Tools } from "../utils/constants";
+import { RoomConnectionTypes, Tools } from "../utils/constants";
 import { MessageTypes } from "../utils/constants";
 
-function Whiteboard() {
+const Whiteboard = ({ localSocket, roomId }) => {
   const canvasRef = useRef(null);
   const socketRef = useRef(null);
   const canvasManagerRef = useRef(null);
@@ -14,13 +14,19 @@ function Whiteboard() {
   const [isDown, setIsDown] = useState(false);
 
   useEffect(() => {
-    const socket = new WhiteboardSocket("ws://localhost:3000");
-    socketRef.current = socket;
+    socketRef.current = localSocket;
 
     const canvasManager = new CanvasManager(canvasRef.current);
     canvasManagerRef.current = canvasManager;
 
-    socket.connect(handleSocketMessage);
+    localSocket.connect(handleSocketMessage);
+
+    localSocket.socket.addEventListener("open", (event) => {
+      if (roomId) {
+        console.log(true)
+        localSocket.sendRoomConnection(roomId, RoomConnectionTypes.JOIN);
+      }
+    });
   }, []);
 
   const handleSocketMessage = (data) => {
@@ -76,10 +82,6 @@ function Whiteboard() {
     setSelectedTool({ tool });
   };
 
-  const handleShare = () => {
-    socketRef.current.sendRoomConnection("123");
-  };
-
   return (
     <>
       <canvas
@@ -108,13 +110,10 @@ function Whiteboard() {
         >
           <LucideEraser onClick={() => handleToolSelect(Tools.ERASER)} />
         </div>
-        <div className="p-1 hover:bg-slate-200 cursor-pointer rounded-lg">
-          <LucideShare onClick={handleShare} />
-        </div>
       </div>
     </>
   );
-}
+};
 
 export default Whiteboard;
 

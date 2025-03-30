@@ -4,3 +4,8 @@ export const MessageTypes = {
   MOUSE_EVENT: "mouse-event",
   TOOL_EVENT: "tool-event",
 };
+
+export const RoomConnectionTypes = {
+  CREATE: "create",
+  JOIN: "join",
+};

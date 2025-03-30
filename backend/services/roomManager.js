@@ -15,7 +15,8 @@ export class RoomManager {
   addClientToRoom(roomId, clientId) {
     let room = this.rooms.get(roomId);
     if (!room) {
-      room = this.createRoom(roomId);
+      console.log("No room exists");
+      return;
     }
     room.clients.add(clientId);
     return room;
