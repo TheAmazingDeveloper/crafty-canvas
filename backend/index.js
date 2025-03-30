@@ -18,7 +18,7 @@ export class WhiteboardServer {
     try {
       mongoose.connect(process.env.MONGODB_URI);
       const expressServer = new ExpressServer(this.port);
-      const httpServer = expressServer.start();
+      // const httpServer = expressServer.start();
       new WebSocketHandler(httpServer, this.roomManager, this.clientManager);
     } catch (error) {
       console.error;
