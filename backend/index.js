@@ -1,9 +1,9 @@
+import { ExpressServer } from "./services/expressServer.js";
 import { WebSocketHandler } from "./services/websocketServer.js";
 import { RoomManager } from "./services/roomManager.js";
 import { ClientManager } from "./services/clientManager.js";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
-import { WebSocketServer } from "ws";
 
 dotenv.config({ path: "./.env" });
 
@@ -18,7 +18,8 @@ export class WhiteboardServer {
   async initializeServer() {
     try {
       await mongoose.connect(process.env.MONGODB_URI);
-      const httpServer = new WebSocketServer({port:process.env.PORT})
+      const expressServer = new ExpressServer(this.port);
+      const httpServer = expressServer.start();
       new WebSocketHandler(httpServer, this.roomManager, this.clientManager);
     } catch (error) {
       console.error;
@@ -30,6 +31,8 @@ export default function createServer() {
   const server = new WhiteboardServer(process.env.PORT);
   return server;
 }
+
+createServer()
 
 // import { WhiteboardServer } from "./services/websocketServer.js";
 
